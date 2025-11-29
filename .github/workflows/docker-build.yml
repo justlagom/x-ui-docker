@@ -2,8 +2,8 @@ name: Docker Build and Publish Custom X-UI
 
 on:
   push:
-    branches: [ "main" ]
-  workflow_dispatch: # 允许手动触发
+    branches: [ "main" ] # 当推送到 main 分支时触发
+  workflow_dispatch: # 允许在 GitHub 网页上手动触发
 
 env:
   REGISTRY: ghcr.io
@@ -12,38 +12,39 @@ env:
 
 jobs:
   build-and-push:
+    # 默认使用 ubuntu-latest (amd64) 运行
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write # 需要写入 packages 的权限
+      packages: write # 必须要有此权限才能推送到 GHCR
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 登录 GitHub 镜像仓库 (GHCR)
+      # 1. 登录 GitHub 镜像仓库 (GHCR)
       - name: Log in to the Container registry
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ secrets.GITHUB_TOKEN }} # 使用 Actions 默认的 Secret
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # 修正后的 Metadata 步骤 (生成 YY.MM.DD 标签)
+      # 2. 提取并设置镜像标签 (Tags)
       - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=latest
-            # 最终的 YY.MM.DD 格式标签
+            type=raw,value=latest # 生成 'latest' 标签
+            # 生成你要求的 YY.MM.DD 格式标签，例如 '25.11.29'
             type=raw,value={{date '06.01.02'}} 
 
-      # 构建并推送 Docker 镜像
+      # 3. 构建并推送 Docker 镜像
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -52,6 +53,6 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          # 关键：将 runner 的架构信息传递给 Dockerfile
+          # 关键：将 Runner 的架构信息传递给 Dockerfile 中的 TARGETARCH
           build-args: |
             TARGETARCH=${{ runner.arch }}
