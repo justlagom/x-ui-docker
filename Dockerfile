@@ -9,7 +9,7 @@ WORKDIR /usr/local/x-ui
 
 # 核心步骤：将本地仓库根目录下的 X-UI 可执行文件及其他必要文件复制到镜像中
 # 假设你的可执行文件名为 'x-ui'
-COPY x-ui .
+COPY . .
 # 复制其他可能的配置文件或依赖文件（如果存在）
 # COPY config.json . 
 
