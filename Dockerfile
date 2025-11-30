@@ -1,62 +1,39 @@
-# ----------------------------------------------------
-# Base Image and Tools Setup
-# ----------------------------------------------------
-# 使用轻量级 Alpine 基础镜像
+# 建议使用 Alpine 基础镜像，体积更小
 FROM alpine:latest
 
-# 定义目标架构参数，由 GitHub Actions 传入 (例如 amd64 或 arm64)
+# 定义目标架构参数，由 GitHub Actions 传入
 ARG TARGETARCH
 
-# 安装必要的工具，bash 用于确保 RUN 命令的 shell 脚本稳定执行
+# 安装必要的工具
 RUN apk update && apk add --no-cache net-tools curl bash
 
 # 设定 X-UI 程序的安装路径
 WORKDIR /usr/local/x-ui
 
-# ----------------------------------------------------
-# 1. Project Packaging
-# ----------------------------------------------------
-# 复制所有文件（项目完整打包）到工作目录
+# 核心步骤 1: 复制所有文件
 COPY . .
 
-# ----------------------------------------------------
-# 2. Architecture Selection and Renaming
-# ----------------------------------------------------
-# 根据 TARGETARCH 变量，选择正确的二进制文件并重命名为 'x-ui'
-RUN target_file="" && \
-    # 确定目标文件名称
+# 核心步骤 2: 根据 TARGETARCH 变量，将正确的二进制文件重命名为 'x-ui'
+RUN echo "Target Architecture is: $TARGETARCH" && \
     if [ "$TARGETARCH" = "amd64" ]; then \
-        target_file="xuiwpph_amd64"; \
+        mv xuiwpph_amd64 x-ui; \
     elif [ "$TARGETARCH" = "arm64" ]; then \
-        target_file="xuiwpph_arm64"; \
+        mv xuiwpph_arm64 x-ui; \
     else \
-        echo "Error: Unsupported architecture $TARGETARCH."; exit 1; \
-    fi && \
-    \
-    echo "--- Architecture Setup ---" && \
-    echo "Target Architecture: $TARGETARCH. Expected file: $target_file" && \
-    \
-    # 检查目标文件是否存在 (防止 'mv' 失败的关键步骤)
-    if [ ! -f "$target_file" ]; then \
-        echo "Error: Required binary '$target_file' not found. Please ensure the file is committed to the repository."; exit 1; \
-    fi && \
-    \
-    # 重命名特定的二进制文件为通用的 'x-ui'
-    echo "Renaming $target_file to x-ui..."; \
-    mv "$target_file" x-ui
+        echo "Error: Unsupported architecture $TARGETARCH. Exiting."; exit 1; \
+    fi
 
-# 3. 赋予可执行权限
+# 核心步骤 3: 赋予可执行权限 (针对统一命名后的文件)
 RUN chmod +x x-ui
 
-# ----------------------------------------------------
-# 4. X-UI Configuration and Entrypoint
-# ----------------------------------------------------
+# 核心步骤 4: 复制配置和 metadata 文件 (已经通过 COPY . . 完成，但为了清晰，如果配置在子目录，仍需指定)
+# 假设其他配置（ssh.yml, version, 默认分流配置）也位于 /usr/local/x-ui/
 
-# 设置数据库文件路径，实现数据持久化
+# 设置数据库文件路径
 ENV XUI_DB_FILE="/etc/x-ui/x-ui.db"
 RUN mkdir -p /etc/x-ui
 
-# 暴露 X-UI 面板默认端口
+# X-UI 面板默认端口
 EXPOSE 54321
 
 # 容器启动时运行 X-UI
